@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>一分钟 · 1min</title>
+<style>
+  /* ===== 基础样式 ===== */
+  :root {
+    --bg: #0f1116;
+    --fg: #e8e8ea;
+    --muted: #8a8f99;
+    --accent: #ffcc4d;
+    --good: #4dd07a;
+    --bad: #ff5d5d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+    touch-action: none; /* 防止触摸时页面滚动/缩放干扰按住 */
+  }
+  #app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 24px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 22px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 420px;
+  }
+
+  /* ===== 主按钮（按住区域）===== */
+  #pad {
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    border: 2px solid #2a2e38;
+    background: radial-gradient(circle at 50% 40%, #1b1f29, #14171f);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--fg);
+    cursor: pointer;
+    transition: transform .08s ease, box-shadow .2s ease, border-color .2s ease;
+    box-shadow: 0 0 0 0 rgba(255, 204, 77, 0);
+  }
+  #pad .label { pointer-events: none; }
+  /* 计时中：呼吸动画作为“正在计时”的状态提示，但绝不泄露时长 */
+  #pad.holding {
+    border-color: var(--accent);
+    transform: scale(0.97);
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 204, 77, 0.0); }
+    50%      { box-shadow: 0 0 60px 8px rgba(255, 204, 77, 0.28); }
+  }
+
+  /* ===== 结果区 ===== */
+  #result {
+    min-height: 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  #verdict { font-size: 30px; font-weight: 700; }
+  #detail  { font-size: 16px; color: var(--muted); }
+  #replay {
+    margin-top: 4px;
+    padding: 10px 22px;
+    font-size: 15px;
+    color: var(--bg);
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  #replay:active { transform: translateY(1px); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>一 分 钟</h1>
+
+  <div id="pad" aria-label="按住开始计时，松手结束">
+    <span class="label" id="padLabel">按住开始</span>
+  </div>
+
+  <p class="hint" id="hint">凭感觉松手，尽量接近 60 秒——但别超过。</p>
+
+  <div id="result">
+    <div id="verdict"></div>
+    <div id="detail"></div>
+    <button id="replay" class="hidden">再玩一次</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// =========================================================
+// 1) DOM 元素引用
+// =========================================================
+const pad      = document.getElementById("pad");
+const padLabel = document.getElementById("padLabel");
+const hint     = document.getElementById("hint");
+const verdict  = document.getElementById("verdict");
+const detail   = document.getElementById("detail");
+const replay   = document.getElementById("replay");
+
+// =========================================================
+// 2) 游戏状态（所有会变的数据集中放这里）
+// =========================================================
+const TARGET = 60; // 目标秒数
+
+const state = {
+  isHolding: false,   // 是否正在计时
+  pressTime: 0,       // 按下时刻（performance.now()）
+  spaceDown: false,   // 空格键是否已按下（防 keydown 重复触发）
+  lastResult: null,   // 上一局结果（秒），null 表示还没玩过
+};
+
+// =========================================================
+// 3) 输入（按住开始 / 松手结束）
+//    —— 计时核心：用时间戳差值，不逐帧累加
+// =========================================================
+
+function startHold() {
+  if (state.isHolding) return;          // 已在计时则忽略
+  state.isHolding = true;
+  state.pressTime = performance.now();  // 记下按下时刻
+
+  // UI：进入计时态，绝不显示任何时间/进度
+  pad.classList.add("holding");
+  padLabel.textContent = "计时中…";
+  hint.textContent = "感觉到 60 秒了就松手。";
+  // 隐藏上一局结果
+  verdict.textContent = "";
+  detail.textContent = "";
+  replay.classList.add("hidden");
+}
+
+function endHold() {
+  if (!state.isHolding) return;
+  state.isHolding = false;
+
+  const elapsedMs = performance.now() - state.pressTime;
+  const elapsed = elapsedMs / 1000; // 转秒
+  state.lastResult = elapsed;
+
+  // UI：退出计时态
+  pad.classList.remove("holding");
+  padLabel.textContent = "按住开始";
+
+  showResult(elapsed);
+}
+
+// 计时中途被打断（指针移出窗口、失焦等）——按松手处理，避免卡住
+function cancelHold() {
+  if (!state.isHolding) return;
+  endHold();
+}
+
+// ---- 指针事件（覆盖鼠标 + 触摸）----
+pad.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  startHold();
+});
+// pointerup / cancel 绑在 window，松手发生在按钮外也能收到
+window.addEventListener("pointerup", endHold);
+window.addEventListener("pointercancel", cancelHold);
+// 切到后台/失焦兜底
+window.addEventListener("blur", cancelHold);
+
+// ---- 键盘（空格）----
+// 注意：按住时 keydown 会重复触发，用 spaceDown flag 保证只首次按下才开始
+window.addEventListener("keydown", (e) => {
+  if (e.code !== "Space") return;
+  e.preventDefault();
+  if (state.spaceDown) return; // 重复触发，忽略
+  state.spaceDown = true;
+  startHold();
+});
+window.addEventListener("keyup", (e) => {
+  if (e.code !== "Space") return;
+  e.preventDefault();
+  state.spaceDown = false;
+  endHold();
+});
+
+// 重玩：仅复位提示文案，等待下一次按住
+replay.addEventListener("click", () => {
+  verdict.textContent = "";
+  detail.textContent = "";
+  replay.classList.add("hidden");
+  hint.textContent = "凭感觉松手，尽量接近 60 秒——但别超过。";
+  padLabel.textContent = "按住开始";
+});
+
+// =========================================================
+// 4) 结果揭晓（只在松手后显示实际时长 / 差值 / 评价）
+// =========================================================
+function showResult(elapsed) {
+  const diff = elapsed - TARGET;       // 正=超时，负=不足
+  const absDiff = Math.abs(diff);
+
+  let text, color;
+  if (diff > 0) {
+    // 超过 60 秒：直接爆掉判负（默认规则）
+    text = "爆掉了 💥";
+    color = "var(--bad)";
+  } else if (absDiff <= 1) {
+    text = "完美 ✨";
+    color = "var(--good)";
+  } else if (absDiff <= 3) {
+    text = "很接近！";
+    color = "var(--good)";
+  } else if (absDiff <= 6) {
+    text = "还行";
+    color = "var(--fg)";
+  } else {
+    text = "太短了";
+    color = "var(--muted)";
+  }
+
+  verdict.style.color = color;
+  verdict.textContent = text;
+
+  const diffStr = diff >= 0
+    ? `超出 ${diff.toFixed(2)} 秒`
+    : `还差 ${absDiff.toFixed(2)} 秒`;
+  detail.textContent = `你按了 ${elapsed.toFixed(2)} 秒 · ${diffStr}`;
+
+  hint.textContent = "";
+  replay.classList.remove("hidden");
+}
+
+// =========================================================
+// 5) 游戏循环（rAF）
+//    v1 计时是事件驱动的，update 很轻；
+//    结构先留好，后续“干扰玩家”功能会重度依赖这里。
+// =========================================================
+function update(/* dt */) {
+  // 计时态的视觉反馈目前用纯 CSS 动画处理，这里暂时不需要逻辑。
+}
+function draw() {
+  // v1 用 DOM 渲染，无 canvas 绘制。
+}
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// =========================================================
+// 6) 启动
+// =========================================================
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
