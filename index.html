@@ -16,269 +16,512 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
-    height: 100%;
+    min-height: 100%;
     background: var(--bg);
     color: var(--fg);
     font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-user-select: none;
     user-select: none;
-    overflow: hidden;
-    touch-action: none; /* 防止触摸时页面滚动/缩放干扰按住 */
+    touch-action: none;
   }
   #app {
-    height: 100%;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 32px;
+    gap: 28px;
     padding: 24px;
     text-align: center;
   }
-  h1 {
-    font-size: 22px;
-    letter-spacing: 4px;
-    color: var(--muted);
-    font-weight: 600;
-  }
-  .hint {
-    color: var(--muted);
-    font-size: 15px;
-    line-height: 1.6;
-    max-width: 420px;
-  }
-
-  /* ===== 主按钮（按住区域）===== */
-  #pad {
-    width: 240px;
-    height: 240px;
-    border-radius: 50%;
-    border: 2px solid #2a2e38;
-    background: radial-gradient(circle at 50% 40%, #1b1f29, #14171f);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    color: var(--fg);
-    cursor: pointer;
-    transition: transform .08s ease, box-shadow .2s ease, border-color .2s ease;
-    box-shadow: 0 0 0 0 rgba(255, 204, 77, 0);
-  }
-  #pad .label { pointer-events: none; }
-  /* 计时中：呼吸动画作为“正在计时”的状态提示，但绝不泄露时长 */
-  #pad.holding {
-    border-color: var(--accent);
-    transform: scale(0.97);
-    animation: breathe 2.4s ease-in-out infinite;
-  }
-  @keyframes breathe {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 204, 77, 0.0); }
-    50%      { box-shadow: 0 0 60px 8px rgba(255, 204, 77, 0.28); }
-  }
-
-  /* ===== 结果区 ===== */
-  #result {
-    min-height: 96px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: center;
-  }
-  #verdict { font-size: 30px; font-weight: 700; }
-  #detail  { font-size: 16px; color: var(--muted); }
-  #replay {
-    margin-top: 4px;
-    padding: 10px 22px;
-    font-size: 15px;
-    color: var(--bg);
-    background: var(--accent);
-    border: none;
-    border-radius: 999px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  #replay:active { transform: translateY(1px); }
+  h1 { font-size: 22px; letter-spacing: 4px; color: var(--muted); font-weight: 600; }
+  h2 { font-size: 24px; font-weight: 700; }
+  .hint { color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 460px; }
+  .hint.small { font-size: 13px; }
   .hidden { display: none !important; }
+
+  /* ===== 通用按钮 ===== */
+  .btn {
+    padding: 10px 22px; font-size: 15px; color: var(--bg);
+    background: var(--accent); border: none; border-radius: 999px;
+    cursor: pointer; font-weight: 600;
+  }
+  .btn.ghost { color: var(--fg); background: transparent; border: 1px solid #2a2e38; }
+  .btn:active { transform: translateY(1px); }
+
+  /* ===== 选人数界面 ===== */
+  .countRow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .countRow button {
+    width: 78px; height: 78px; border-radius: 18px;
+    border: 2px solid #2a2e38; background: #14171f; color: var(--fg);
+    font-size: 18px; cursor: pointer;
+    transition: border-color .15s ease, transform .08s ease;
+  }
+  .countRow button:hover { border-color: var(--accent); }
+  .countRow button:active { transform: scale(0.96); }
+
+  /* ===== 玩家卡片（也是触摸按住的触点）===== */
+  #players { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .card {
+    width: 150px; padding: 20px 14px; border-radius: 20px;
+    border: 2px solid #2a2e38; background: #14171f;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    transition: border-color .2s ease, box-shadow .2s ease, opacity .2s ease;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  .card.holding { border-color: var(--c); animation: cardGlow 2.4s ease-in-out infinite; }
+  .card.done { opacity: .5; animation: none; }
+  @keyframes cardGlow {
+    0%, 100% { box-shadow: 0 0 0 0 transparent; }
+    50%      { box-shadow: 0 0 30px -4px var(--c); }
+  }
+  .card.placeholder { border-style: dashed; opacity: .6; }
+  .card.placeholder .cardKey { border-color: #2a2e38; color: var(--muted); }
+
+  .cardKey {
+    min-width: 64px; height: 64px; padding: 0 14px;
+    border-radius: 14px; border: 2px solid var(--c); color: var(--c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 700;
+  }
+  .cardName { font-size: 15px; color: var(--fg); font-weight: 600; }
+  .cardStatus { font-size: 13px; color: var(--muted); height: 16px; }
+  .card.holding .cardStatus { color: var(--c); }
+
+  /* ===== 开始提示横幅 ===== */
+  #banner {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 64px; font-weight: 800; color: var(--accent); pointer-events: none;
+  }
+  #banner.flash { animation: bannerFlash .8s ease-out; }
+  @keyframes bannerFlash {
+    0%   { opacity: 0; transform: scale(0.6); }
+    20%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.3); }
+  }
+
+  /* ===== 结果排名 ===== */
+  #ranking { display: flex; flex-direction: column; gap: 8px; }
+  .rankRow {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    border-radius: 12px; background: #14171f; width: min(460px, 92vw); text-align: left;
+  }
+  .rankRow.winner { box-shadow: inset 0 0 0 1px var(--good); background: #161d17; }
+  .rankNo { width: 20px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rankName { flex: 0 0 78px; font-weight: 600; }
+  .rankTime { flex: 1; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .rankDiff { font-size: 14px; color: var(--muted); }
+  .rankDiff.bad { color: var(--bad); }
+  .resultBtns { display: flex; gap: 12px; justify-content: center; }
 </style>
 </head>
 <body>
 <div id="app">
   <h1>一 分 钟</h1>
 
-  <div id="pad" aria-label="按住开始计时，松手结束">
-    <span class="label" id="padLabel">按住开始</span>
+  <!-- 选人数 -->
+  <div id="selectScreen">
+    <p class="hint">选择人数</p>
+    <div class="countRow">
+      <button data-count="1">1 人</button>
+      <button data-count="2">2 人</button>
+      <button data-count="3">3 人</button>
+      <button data-count="4">4 人</button>
+    </div>
+    <p class="hint small" style="margin-top:20px">
+      每人按住一个键、或屏幕上的方块加入，凑齐人数就开始倒计时。<br>
+      凭感觉在第 60 秒松手——超过就爆掉，没爆且最接近者获胜。
+    </p>
   </div>
 
-  <p class="hint" id="hint">凭感觉松手，尽量接近 60 秒——但别超过。</p>
-
-  <div id="result">
-    <div id="verdict"></div>
-    <div id="detail"></div>
-    <button id="replay" class="hidden">再玩一次</button>
+  <!-- 游戏中（准备 / 倒计时 / 计时） -->
+  <div id="gameScreen" class="hidden">
+    <div id="players"></div>
+    <p class="hint" id="gameHint"></p>
   </div>
+
+  <!-- 结果 -->
+  <div id="resultScreen" class="hidden">
+    <h2 id="resultTitle"></h2>
+    <div id="ranking"></div>
+    <div class="resultBtns">
+      <button id="replayBtn" class="btn">再来一局</button>
+      <button id="menuBtn" class="btn ghost">换人数</button>
+    </div>
+  </div>
+
+  <div id="banner" class="hidden">开始！</div>
 </div>
 
 <script>
 "use strict";
 
 // =========================================================
-// 1) DOM 元素引用
-// =========================================================
-const pad      = document.getElementById("pad");
-const padLabel = document.getElementById("padLabel");
-const hint     = document.getElementById("hint");
-const verdict  = document.getElementById("verdict");
-const detail   = document.getElementById("detail");
-const replay   = document.getElementById("replay");
-
-// =========================================================
-// 2) 游戏状态（所有会变的数据集中放这里）
+// 1) 配置
 // =========================================================
 const TARGET = 60; // 目标秒数
+const PLAYER_COLORS = ["#ffcc4d", "#5db8ff", "#4dd07a", "#ff9d5c"];
+// 这些键不参与抢键（避免干扰浏览器/焦点）
+const IGNORE_KEYS = ["Shift", "Control", "Alt", "Meta", "Tab", "ContextMenu"];
 
+// =========================================================
+// 2) DOM 引用
+// =========================================================
+const selectScreen = document.getElementById("selectScreen");
+const gameScreen   = document.getElementById("gameScreen");
+const resultScreen = document.getElementById("resultScreen");
+const playersEl    = document.getElementById("players");
+const gameHint     = document.getElementById("gameHint");
+const banner       = document.getElementById("banner");
+const resultTitle  = document.getElementById("resultTitle");
+const rankingEl    = document.getElementById("ranking");
+
+// =========================================================
+// 3) 状态
+//    phase: select → ready → countdown → playing → result
+//    slots: 固定 playerCount 个槽位，槽位不重建，只换占用者 occupant
+//    occupant: { source:'key'|'touch', code|pointerId, label,
+//                holding, released, busted, elapsed, name, color }
+// =========================================================
 const state = {
-  isHolding: false,   // 是否正在计时
-  pressTime: 0,       // 按下时刻（performance.now()）
-  spaceDown: false,   // 空格键是否已按下（防 keydown 重复触发）
-  lastResult: null,   // 上一局结果（秒），null 表示还没玩过
+  phase: "select",
+  playerCount: 0,
+  slots: [],
+  startTime: 0,
 };
 
-// =========================================================
-// 3) 输入（按住开始 / 松手结束）
-//    —— 计时核心：用时间戳差值，不逐帧累加
-// =========================================================
+let countdownTimers = [];   // 倒计时定时器
+let playTimer = null;       // 60 秒到点强制爆掉
 
-function startHold() {
-  if (state.isHolding) return;          // 已在计时则忽略
-  state.isHolding = true;
-  state.pressTime = performance.now();  // 记下按下时刻
-
-  // UI：进入计时态，绝不显示任何时间/进度
-  pad.classList.add("holding");
-  padLabel.textContent = "计时中…";
-  hint.textContent = "感觉到 60 秒了就松手。";
-  // 隐藏上一局结果
-  verdict.textContent = "";
-  detail.textContent = "";
-  replay.classList.add("hidden");
+// =========================================================
+// 4) 工具
+// =========================================================
+function keyLabel(e) {
+  if (e.code === "Space" || e.key === " ") return "空格";
+  const map = { ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→", Enter: "⏎" };
+  if (map[e.code]) return map[e.code];
+  if (e.key && e.key.length === 1) return e.key.toUpperCase();
+  if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3);
+  if (/^Digit\d$/.test(e.code)) return e.code.slice(5);
+  return e.code;
 }
 
-function endHold() {
-  if (!state.isHolding) return;
-  state.isHolding = false;
-
-  const elapsedMs = performance.now() - state.pressTime;
-  const elapsed = elapsedMs / 1000; // 转秒
-  state.lastResult = elapsed;
-
-  // UI：退出计时态
-  pad.classList.remove("holding");
-  padLabel.textContent = "按住开始";
-
-  showResult(elapsed);
-}
-
-// 计时中途被打断（指针移出窗口、失焦等）——按松手处理，避免卡住
-function cancelHold() {
-  if (!state.isHolding) return;
-  endHold();
-}
-
-// ---- 指针事件（覆盖鼠标 + 触摸）----
-pad.addEventListener("pointerdown", (e) => {
-  e.preventDefault();
-  startHold();
-});
-// pointerup / cancel 绑在 window，松手发生在按钮外也能收到
-window.addEventListener("pointerup", endHold);
-window.addEventListener("pointercancel", cancelHold);
-// 切到后台/失焦兜底
-window.addEventListener("blur", cancelHold);
-
-// ---- 键盘（空格）----
-// 注意：按住时 keydown 会重复触发，用 spaceDown flag 保证只首次按下才开始
-window.addEventListener("keydown", (e) => {
-  if (e.code !== "Space") return;
-  e.preventDefault();
-  if (state.spaceDown) return; // 重复触发，忽略
-  state.spaceDown = true;
-  startHold();
-});
-window.addEventListener("keyup", (e) => {
-  if (e.code !== "Space") return;
-  e.preventDefault();
-  state.spaceDown = false;
-  endHold();
-});
-
-// 重玩：仅复位提示文案，等待下一次按住
-replay.addEventListener("click", () => {
-  verdict.textContent = "";
-  detail.textContent = "";
-  replay.classList.add("hidden");
-  hint.textContent = "凭感觉松手，尽量接近 60 秒——但别超过。";
-  padLabel.textContent = "按住开始";
-});
+function filledCount() { return state.slots.filter((s) => s.occupant).length; }
+function allFilled() { return state.slots.length > 0 && state.slots.every((s) => s.occupant); }
 
 // =========================================================
-// 4) 结果揭晓（只在松手后显示实际时长 / 差值 / 评价）
+// 5) 进入准备 / 建槽 / 渲染
 // =========================================================
-function showResult(elapsed) {
-  const diff = elapsed - TARGET;       // 正=超时，负=不足
-  const absDiff = Math.abs(diff);
+function enterReady(count) {
+  clearCountdown();
+  clearTimeout(playTimer);
+  state.playerCount = count;
+  state.startTime = 0;
+  state.slots = Array.from({ length: count }, (_, i) => ({
+    index: i,
+    name: `玩家${i + 1}`,
+    color: PLAYER_COLORS[i],
+    occupant: null,
+    el: null,
+  }));
+  state.phase = "ready";
+  createSlots();
+  updateUI();
+}
 
-  let text, color;
-  if (diff > 0) {
-    // 超过 60 秒：直接爆掉判负（默认规则）
-    text = "爆掉了 💥";
-    color = "var(--bad)";
-  } else if (absDiff <= 1) {
-    text = "完美 ✨";
-    color = "var(--good)";
-  } else if (absDiff <= 3) {
-    text = "很接近！";
-    color = "var(--good)";
-  } else if (absDiff <= 6) {
-    text = "还行";
-    color = "var(--fg)";
-  } else {
-    text = "太短了";
-    color = "var(--muted)";
+// 一次性创建槽位卡片（之后只更新内容，保证触摸 pointer capture 不丢）
+function createSlots() {
+  playersEl.innerHTML = "";
+  for (const slot of state.slots) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.setProperty("--c", slot.color);
+
+    const key = document.createElement("div");
+    key.className = "cardKey";
+    const name = document.createElement("div");
+    name.className = "cardName";
+    name.textContent = slot.name;
+    const status = document.createElement("div");
+    status.className = "cardStatus";
+
+    card.append(key, name, status);
+    playersEl.appendChild(card);
+    slot.el = { card, key, status };
+
+    // 触摸 / 鼠标：按住空槽加入；松开则取消或松手
+    card.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      e.preventDefault();
+      onPadDown(slot, e);
+    });
+    card.addEventListener("pointerup", (e) => { e.preventDefault(); onPadUp(slot, e); });
+    card.addEventListener("pointercancel", (e) => onPadUp(slot, e));
   }
+  renderSlots();
+}
 
-  verdict.style.color = color;
-  verdict.textContent = text;
+function renderSlots() {
+  for (const slot of state.slots) {
+    const o = slot.occupant;
+    const { card, key, status } = slot.el;
 
-  const diffStr = diff >= 0
-    ? `超出 ${diff.toFixed(2)} 秒`
-    : `还差 ${absDiff.toFixed(2)} 秒`;
-  detail.textContent = `你按了 ${elapsed.toFixed(2)} 秒 · ${diffStr}`;
+    card.classList.toggle("placeholder", !o);
+    card.classList.toggle("holding", !!o && !o.released);
+    card.classList.toggle("done", !!o && o.released);
 
-  hint.textContent = "";
-  replay.classList.remove("hidden");
+    if (!o) {
+      key.textContent = "?";
+      status.textContent = state.phase === "ready" ? "按住加入" : "";
+      continue;
+    }
+    key.textContent = o.label;
+    if (state.phase === "ready") status.textContent = "已就绪 ✓";
+    else if (state.phase === "countdown") status.textContent = "准备中…";
+    else if (state.phase === "playing") status.textContent = o.released ? "已松手" : "计时中…";
+    else status.textContent = "";
+  }
+}
+
+function updateUI() {
+  selectScreen.classList.toggle("hidden", state.phase !== "select");
+  gameScreen.classList.toggle("hidden",
+    !(state.phase === "ready" || state.phase === "countdown" || state.phase === "playing"));
+  resultScreen.classList.toggle("hidden", state.phase !== "result");
+
+  if (state.phase === "ready") {
+    gameHint.textContent =
+      `各自按住一个键或方块加入（已 ${filledCount()}/${state.playerCount}）；松开取消，凑齐即开始。`;
+  } else if (state.phase === "countdown") {
+    gameHint.textContent = "保持按住，别松手……";
+  } else if (state.phase === "playing") {
+    gameHint.textContent = "凭感觉在第 60 秒松手——别超过。";
+  }
+  if (state.phase === "ready" || state.phase === "countdown" || state.phase === "playing") renderSlots();
 }
 
 // =========================================================
-// 5) 游戏循环（rAF）
-//    v1 计时是事件驱动的，update 很轻；
-//    结构先留好，后续“干扰玩家”功能会重度依赖这里。
+// 6) 占用 / 释放（键盘与触摸共用）
 // =========================================================
-function update(/* dt */) {
-  // 计时态的视觉反馈目前用纯 CSS 动画处理，这里暂时不需要逻辑。
+function occupy(slot, occ) {
+  slot.occupant = Object.assign(
+    { holding: true, released: false, busted: false, elapsed: null, name: slot.name, color: slot.color },
+    occ
+  );
+  updateUI();
+  if (allFilled()) beginCountdown();
 }
-function draw() {
-  // v1 用 DOM 渲染，无 canvas 绘制。
+
+// 统一的“松开”处理：按当前阶段决定取消加入 / 中止倒计时 / 松手
+function handleRelease(slot) {
+  if (state.phase === "ready") {
+    slot.occupant = null;
+    updateUI();
+  } else if (state.phase === "countdown") {
+    clearCountdown();
+    hideBanner();
+    state.phase = "ready";
+    slot.occupant = null;
+    updateUI();
+  } else if (state.phase === "playing") {
+    releaseOccupant(slot);
+  }
 }
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
+
+function releaseOccupant(slot) {
+  const o = slot.occupant;
+  if (!o || o.released) return;        // 答案已锁定
+  o.released = true;
+  o.elapsed = (performance.now() - state.startTime) / 1000;
+  renderSlots();
+  if (state.slots.every((s) => s.occupant && s.occupant.released)) showResults();
+}
+
+// ---- 触摸 / 鼠标 ----
+function onPadDown(slot, e) {
+  if (state.phase !== "ready") return; // 只在准备阶段能加入
+  if (slot.occupant) return;           // 槽已被占
+  try { slot.el.card.setPointerCapture(e.pointerId); } catch (_) {}
+  occupy(slot, { source: "touch", pointerId: e.pointerId, label: "👆" });
+}
+function onPadUp(slot, e) {
+  const o = slot.occupant;
+  if (!o || o.source !== "touch" || o.pointerId !== e.pointerId) return;
+  handleRelease(slot);
 }
 
 // =========================================================
-// 6) 启动
+// 7) 倒计时 / 开局 / 爆掉 / 结算
 // =========================================================
-requestAnimationFrame(loop);
+function beginCountdown() {
+  clearCountdown();
+  state.phase = "countdown";
+  updateUI();
+
+  const steps = ["准备", "3", "2", "1"];
+  let i = 0;
+  const showNext = () => {
+    if (i < steps.length) {
+      bannerShow(steps[i]);
+      i += 1;
+      countdownTimers.push(setTimeout(showNext, 750));
+    } else {
+      bannerShow("开始！");
+      beginPlaying();                       // 此刻才设统一 t0
+      countdownTimers.push(setTimeout(hideBanner, 600));
+    }
+  };
+  showNext();
+}
+
+function clearCountdown() {
+  countdownTimers.forEach(clearTimeout);
+  countdownTimers = [];
+}
+
+function beginPlaying() {
+  state.phase = "playing";
+  state.startTime = performance.now();
+  clearTimeout(playTimer);
+  playTimer = setTimeout(bustRemaining, TARGET * 1000); // 到 60 秒还没松手的全部爆掉
+  updateUI();
+}
+
+// 60 秒到点：所有还按着的人一起爆掉，直接结算
+function bustRemaining() {
+  if (state.phase !== "playing") return;
+  state.slots.forEach((s) => {
+    const o = s.occupant;
+    if (o && !o.released) { o.released = true; o.busted = true; o.elapsed = TARGET; }
+  });
+  bannerShow("时间到 💥");
+  setTimeout(hideBanner, 800);
+  showResults();
+}
+
+function bannerShow(text) {
+  banner.textContent = text;
+  banner.classList.remove("hidden", "flash");
+  void banner.offsetWidth; // 重启动画
+  banner.classList.add("flash");
+}
+function hideBanner() { banner.classList.add("hidden"); }
+
+function showResults() {
+  clearTimeout(playTimer);
+  state.phase = "result";
+
+  const players = state.slots.map((s) => s.occupant).filter(Boolean);
+
+  // 没爆的在前（越接近 60 越靠前）；爆掉的在后
+  const ranked = [...players].sort((a, b) => {
+    if (a.busted !== b.busted) return a.busted ? 1 : -1;
+    if (!a.busted) return b.elapsed - a.elapsed;
+    return 0;
+  });
+
+  const winner = ranked[0] && !ranked[0].busted ? ranked[0] : null;
+  resultTitle.textContent = winner ? `🏆 ${winner.name} 获胜！` : "全员爆掉 💥 无人胜出";
+
+  rankingEl.innerHTML = "";
+  ranked.forEach((p, i) => {
+    const isWinner = p === winner;
+
+    const row = document.createElement("div");
+    row.className = "rankRow" + (isWinner ? " winner" : "");
+
+    const no = document.createElement("span");
+    no.className = "rankNo";
+    no.textContent = p.busted ? "—" : String(i + 1);
+
+    const name = document.createElement("span");
+    name.className = "rankName";
+    name.style.color = p.color;
+    name.textContent = p.name;
+
+    const time = document.createElement("span");
+    time.className = "rankTime";
+    time.textContent = p.busted ? "超时" : `${p.elapsed.toFixed(2)} 秒`;
+
+    const d = document.createElement("span");
+    d.className = "rankDiff" + (p.busted ? " bad" : "");
+    d.textContent = p.busted
+      ? "爆掉 💥"
+      : `差 ${(TARGET - p.elapsed).toFixed(2)} 秒` + (isWinner ? " 🏆" : "");
+
+    row.append(no, name, time, d);
+    rankingEl.appendChild(row);
+  });
+
+  updateUI();
+}
+
+function backToSelect() {
+  clearCountdown();
+  clearTimeout(playTimer);
+  hideBanner();
+  state.phase = "select";
+  updateUI();
+}
+
+// =========================================================
+// 8) 事件绑定
+// =========================================================
+selectScreen.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-count]");
+  if (!b) return;
+  enterReady(parseInt(b.dataset.count, 10));
+});
+
+document.getElementById("replayBtn").addEventListener("click", () => enterReady(state.playerCount));
+document.getElementById("menuBtn").addEventListener("click", backToSelect);
+
+// ---- 键盘 ----
+window.addEventListener("keydown", (e) => {
+  if (state.phase === "ready") {
+    if (e.key === "Escape") { backToSelect(); return; }
+    if (IGNORE_KEYS.includes(e.key)) return;
+    e.preventDefault();
+    // 该键已占某槽（含 keydown 重复）则忽略
+    if (state.slots.some((s) => s.occupant && s.occupant.source === "key" && s.occupant.code === e.code)) return;
+    const slot = state.slots.find((s) => !s.occupant);
+    if (!slot) return;
+    occupy(slot, { source: "key", code: e.code, label: keyLabel(e) });
+  } else if (state.phase === "countdown" || state.phase === "playing") {
+    // 已加入的键按下（含重复）无操作，仅阻止默认行为
+    if (state.slots.some((s) => s.occupant && s.occupant.source === "key" && s.occupant.code === e.code)) {
+      e.preventDefault();
+    }
+  }
+});
+
+window.addEventListener("keyup", (e) => {
+  const slot = state.slots.find((s) => s.occupant && s.occupant.source === "key" && s.occupant.code === e.code);
+  if (!slot) return;
+  e.preventDefault();
+  handleRelease(slot);
+});
+
+// 失焦兜底：准备/倒计时阶段清空；计时阶段把仍按住的人按当前用时锁定
+window.addEventListener("blur", () => {
+  if (state.phase === "ready" || state.phase === "countdown") {
+    clearCountdown();
+    hideBanner();
+    state.phase = "ready";
+    state.slots.forEach((s) => (s.occupant = null));
+    updateUI();
+  } else if (state.phase === "playing") {
+    state.slots.forEach((s) => releaseOccupant(s));
+  }
+});
+
+// =========================================================
+// 9) 启动
+// =========================================================
+updateUI();
 </script>
 </body>
 </html>
